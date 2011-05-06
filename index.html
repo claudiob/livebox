@@ -7,11 +7,30 @@
   html { height: 100% }
   body { height: 100%; margin: 0px; padding: 0px }
   #map_canvas { width:100%; height: 100% }
+  h1 {position: absolute; left: 100px; top: 0;}
+  h2 {position: absolute; left: 100px; top: 100px;}
 </style>
 <script type="text/javascript"
     src="http://maps.google.com/maps/api/js?sensor=false">
 </script>
 <script type="text/javascript">
+  var map;
+  
+  function placeMarkers(places) {
+    for(title in places) {
+      var latlng = new google.maps.LatLng(places[title][0], places[title][1]);
+      new google.maps.Marker({position: latlng, map: map, title: title});   
+    }
+  }
+
+  function drawLine(places) {
+    var coordinates = new Array();
+    for(title in places) {
+      coordinates.push(new google.maps.LatLng(places[title][0], places[title][1]))
+    }
+    new google.maps.Polyline({path: coordinates}).setMap(map);
+  }
+
   function initialize() {
     var myLatlng = new google.maps.LatLng(37.823, -96.284);
     var myOptions = {
@@ -19,21 +38,21 @@
       center: myLatlng,
       mapTypeId: google.maps.MapTypeId.ROADMAP
     }
-    var map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
-    
-    var marker = new google.maps.Marker({
-        position: myLatlng, 
-        map: map,
-        title:"A concert"
-    });   
+    map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
   }
-  
+    
 </script>
 </head>
 <body onload="initialize()">
   <div id="map_canvas"></div>
   <script type="text/javascript">
-
+    var cities = new Array();
+    cities["Los Angeles"] = [33.93, -118.40];
+    cities["Chicago"]     = [41.90,  -87.65];
+    cities["Detroit"]     = [42.42,  -83.02];
+    cities["New York"]    = [40.77,  -73.98];
   </script>
+  <h1 onclick='placeMarkers(cities);'>Markers</h1>
+  <h2 onclick='drawLine(cities);'>Line</h2>
 </body>
 </html>
