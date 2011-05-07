@@ -5,12 +5,8 @@
   <meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
   <title>Concerts on a map</title>
   <style type="text/css">
-    html { height: 100% }
-    body { height: 100%; margin: 0px; padding: 0px }
-    #map_canvas { width:100%; height: 100% }
-    h1, h2, form {position: absolute; left: 100px; top: 0;}
-    h2 {top: 100px;}
-    form {top: 200px;}
+    body { margin: 0px; padding: 0px }
+    #map_canvas { width:100%; height: 700px }
   </style>
   <script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false"></script>
   <script type="text/javascript">
@@ -48,52 +44,70 @@
   <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.5.1/jquery.min.js"></script>
   <script src="http://127.0.0.1:8080/socket.io/socket.io.js"></script> 
   <script> 
-    // make a connection to the server
-    var socket = new io.Socket('127.0.0.1', {port:8080, connectTimeout:5000});
-    // make a message buffer in case things get congested
     var buffer = [];
+    var socket = new io.Socket('127.0.0.1', {port:8080, connectTimeout:5000});
     socket.connect();
-     socket.on('connection', function(client){
+    socket.on('connection', function(client){
   	  client.send({buffer: buffer});
   	  client.broadcast({announcement: client.sessionId + ' connected'});
     });
- 
     socket.on('connect_failed', function(){
           alert('The connection to the server failed.');
     });
- 
-    socket.on('message', function(message){
-          // when the client gets a message from the server, 
-          // add it to the buffer and display the message
-  	  buffer.push(message);
-  	  if(buffer.length > 15)
-  		  buffer.shift();	  
-  	  appendMessage(message.message);
-    });
- 
     socket.on('disconnect', function(client){ 
       // on disconnect, broadcast it to the server
       client.broadcast({ announcement: client.sessionId + ' disconnected' });
     });
  
+    /**** MESSAGES ****/
+
+    socket.on('message', function(msg){
+          // when the client gets a message from the server, 
+          // add it to the buffer and display the message
+      buffer.push(msg);
+      if(buffer.length > 15) buffer.shift();   
+      if (msg.message!=undefined)
+          appendMessage(msg.message); 
+      else if (msg.place!=undefined)
+          appendPlace(msg.place);
+      else if (msg.venues!=undefined)
+          appendVenues(msg.venues);
+    });
     // send a message to the server
     function sendMessage(message){
-  	  if(!message){
-  	  	var msg = $("input#message").val(); 
-  	  	$("input#message").val('');
-  	  } else {
-  		var msg = message; 
-  	  }
-  	  if(msg.length > 0){ // stop annoying empty messages
-  	  	if(socket.send({message:msg})) // send the message
-      	  	    appendMessage('You: ' + msg); // show the message
-  	  }
+      if(!message){
+        var msg = $("input#message").val(); 
+        $("input#message").val('');
+      } else {
+      var msg = message; 
+      }
+      if(msg.length > 0){ // stop annoying empty messages
+        if(socket.send({message:msg})) // send the message
+                appendMessage(msg); // show the message
+      }
     }
- 
     // show the message on the screen
     function appendMessage(message){
-  	    //$('body').append('<div class="msg">' + message + '</div>'); 
-        geocoder.geocode({'address': message}, function(responses) {
+          $('body').append('<div class="msg">' + message + '</div>'); 
+    }
+
+    /**** PLACES ****/
+
+    // send a place to the server
+    function sendPlace(place){
+      if(!place){
+        var pl = $("input#place").val(); 
+        $("input#place").val('');
+      } else {
+      var pl = place; 
+      }
+      if(pl.length > 0)
+        socket.send({place:pl})
+        // don't show anything, the broadcast is to me included
+    }
+    // show the marker for the place
+    function appendPlace(place){
+        geocoder.geocode({'address': place}, function(responses) {
           if (responses && responses.length > 0) {
             coords = responses[0].geometry.location;
             title = responses[0].formatted_address
@@ -101,6 +115,28 @@
             new google.maps.Marker({position: latlng, map: map, title: title});   
           }
         });
+    }
+
+    /**** ARTISTS ****/
+
+    // send an artist to the server
+    function sendArtist(artist){
+      if(!artist){
+        var art = $("input#artist").val(); 
+        $("input#artist").val('');
+      } else {
+      var art = artist; 
+      }
+      if(art.length > 0)
+        socket.send({artist:art})
+        // don't show anything, the broadcast is to me included
+    }
+    // show the concerts' count for the artist
+    function appendVenues(venues){
+      for(i = 0; i < venues.length; i++) {
+        $('body').append('<div class="msg">Playing in ' + venues[i] + '</div>'); 
+        appendPlace(venues[i]);
+      }
     }
   </script>
 </head>
@@ -113,10 +149,23 @@
     cities["Detroit"]     = [42.42,  -83.02];
     cities["New York"]    = [40.77,  -73.98];
   </script>
-  <h1 onclick='placeMarkers(cities);'>Markers</h1>
-  <h2 onclick='drawLine(cities);'>Line</h2>
+  <a href='javascript: placeMarkers(cities);'>Test markers</a>
+  <a href='javascript: drawLine(cities);'>Test line</a>
   <form method="post" action="" onsubmit="return false;" />
-    <input type="text" name="message" id="message" value="Los Angeles, CA" />
+    <legend>Test artist:</legend>
+    <input type="text" name="artist" id="artist" value="Weezer" />
+    <input id="client" name="client" value="" type="hidden" />
+    <input type="submit" class="button" name="send" id="send" value="Send" onclick="sendArtist();" />
+  </form>
+  <form method="post" action="" onsubmit="return false;" />
+    <legend>Test location:</legend>
+    <input type="text" name="place" id="place" value="Los Angeles, CA" />
+    <input id="client" name="client" value="" type="hidden" />
+    <input type="submit" class="button" name="send" id="send" value="Send" onclick="sendPlace();" />
+  </form>
+  <form method="post" action="" onsubmit="return false;" />
+    <legend>Test message:</legend>
+    <input type="text" name="message" id="message" value="Hello World" />
     <input id="client" name="client" value="" type="hidden" />
     <input type="submit" class="button" name="send" id="send" value="Send" onclick="sendMessage();" />
   </form>
